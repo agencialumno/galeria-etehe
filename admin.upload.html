@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Lumno | Organizador de Fotos ETEHE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background: #00344C;
+    color: #fff;
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1{ margin-bottom: 8px; }
+  p{ opacity: 0.8; margin-bottom: 24px; }
+
+  .drop-area{
+    border: 3px dashed #F2C94C;
+    border-radius: 16px;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .drop-area.dragover{
+    background: rgba(242,201,76,0.1);
+  }
+  .drop-area p{ margin: 0; font-size: 18px; }
+
+  input[type=file]{ display: none; }
+
+  .config{
+    display:flex;
+    gap: 16px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .config label{
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+    opacity: 0.8;
+  }
+  .config input{
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    width: 160px;
+  }
+
+  .lista{
+    margin-top: 24px;
+  }
+  .item{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    background: rgba(255,255,255,0.08);
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .item img{
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+  .item .nome-original{
+    flex: 1;
+    font-size: 13px;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item .id-novo{
+    font-weight: 700;
+    color: #F2C94C;
+  }
+
+  .acoes{
+    margin-top: 24px;
+    display:flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  button{
+    background: #F2C94C;
+    color: #00344C;
+    font-weight: 800;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 100px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:disabled{
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  textarea{
+    width: 100%;
+    height: 200px;
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: 10px;
+    border: none;
+    font-family: monospace;
+    font-size: 13px;
+    background: #fff;
+    color: #00344C;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Organizador de Fotos — ETEHE</h1>
+  <p>Ferramenta local: renomeia as fotos e gera o código pronto. Não sobe nada automaticamente — você mesmo arrasta o resultado pro GitHub.</p>
+
+  <div class="config">
+    <div>
+      <label>Prefixo do ID</label>
+      <input type="text" id="prefixo" value="ETEHE">
+    </div>
+    <div>
+      <label>Começar em</label>
+      <input type="number" id="inicio" value="1">
+    </div>
+  </div>
+
+  <div class="drop-area" id="drop-area">
+    <p>Arraste as fotos aqui ou clique para selecionar</p>
+    <input type="file" id="input-fotos" multiple accept="image/*">
+  </div>
+
+  <div class="lista" id="lista"></div>
+
+  <div class="acoes">
+    <button id="btn-zip" disabled>Baixar .zip renomeado</button>
+    <button id="btn-codigo" disabled>Gerar código JS</button>
+  </div>
+
+  <textarea id="codigo-saida" placeholder="O código gerado vai aparecer aqui..." readonly></textarea>
+
+<script>
+  const dropArea = document.getElementById('drop-area');
+  const input = document.getElementById('input-fotos');
+  const lista = document.getElementById('lista');
+  const btnZip = document.getElementById('btn-zip');
+  const btnCodigo = document.getElementById('btn-codigo');
+  const codigoSaida = document.getElementById('codigo-saida');
+  const prefixoInput = document.getElementById('prefixo');
+  const inicioInput = document.getElementById('inicio');
+
+  let arquivos = [];
+
+  dropArea.addEventListener('click', () => input.click());
+  dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragover'); });
+  dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+  dropArea.addEventListener('drop', e => {
+    e.preventDefault();
+    dropArea.classList.remove('dragover');
+    adicionarArquivos(e.dataTransfer.files);
+  });
+  input.addEventListener('change', e => adicionarArquivos(e.target.files));
+
+  function adicionarArquivos(fileList){
+    arquivos = arquivos.concat(Array.from(fileList));
+    renderizarLista();
+  }
+
+  function extensao(nomeArquivo){
+    const partes = nomeArquivo.split('.');
+    return partes.length > 1 ? partes.pop().toLowerCase() : 'jpg';
+  }
+
+  function renderizarLista(){
+    lista.innerHTML = '';
+    const prefixo = prefixoInput.value.trim() || 'FOTO';
+    const inicio = parseInt(inicioInput.value) || 1;
+
+    arquivos.forEach((arquivo, index) => {
+      const numero = String(inicio + index).padStart(3, '0');
+      const id = `${prefixo}${numero}`;
+      const ext = extensao(arquivo.name);
+      arquivo._novoId = id;
+      arquivo._novoNome = `${id}.${ext}`;
+
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(arquivo);
+
+      item.appendChild(img);
+      item.innerHTML += `
+        <span class="nome-original">${arquivo.name}</span>
+        <span class="id-novo">→ ${arquivo._novoNome}</span>
+      `;
+      lista.appendChild(item);
+    });
+
+    btnZip.disabled = arquivos.length === 0;
+    btnCodigo.disabled = arquivos.length === 0;
+  }
+
+  prefixoInput.addEventListener('input', renderizarLista);
+  inicioInput.addEventListener('input', renderizarLista);
+
+  btnZip.addEventListener('click', async () => {
+    const zip = new JSZip();
+    for(const arquivo of arquivos){
+      zip.file(arquivo._novoNome, arquivo);
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fotos-etehe.zip';
+    a.click();
+  });
+
+  btnCodigo.addEventListener('click', () => {
+    const linhas = arquivos.map(a =>
+      `  { id: "${a._novoId}", arquivo: "assets/fotos/${a._novoNome}" },`
+    );
+    const codigo = `const fotos = [\n${linhas.join('\n')}\n];`;
+    codigoSaida.value = codigo;
+    codigoSaida.select();
+  });
+</script>
+
+</body>
+</html>

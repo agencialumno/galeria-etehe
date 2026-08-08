@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumno | Galeria ETEHE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --escuro: #00344C;
+    --amarelo: #F2C94C;
+    --cinza-claro: #F5F6FA;
+    --cinza-texto: #4F4F4F;
+    --branco: #FFFFFF;
+    --raio: 16px;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  body{
+    font-family: 'Montserrat', sans-serif;
+    color: var(--escuro);
+    background: var(--branco);
+    line-height: 1.5;
+    padding-bottom: 110px; /* espaço pra barra fixa não cobrir conteúdo */
+  }
+
+  .container{
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    background: var(--escuro);
+    padding: 20px 0;
+  }
+  header .container{
+    display:flex;
+    justify-content: center;
+    align-items: center;
+  }
+  header .logo-texto{
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    color: var(--branco);
+    letter-spacing: 1px;
+  }
+
+  /* ---------- INTRO ---------- */
+  .intro{
+    text-align:center;
+    padding: 48px 0 32px;
+  }
+  .intro h1{
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .intro p{
+    font-size: 16px;
+    color: var(--cinza-texto);
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .intro .preco-info{
+    display:inline-block;
+    margin-top: 16px;
+    background: var(--cinza-claro);
+    color: var(--escuro);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: 100px;
+  }
+
+  /* ---------- GALERIA ---------- */
+  .galeria{
+    padding: 24px 0 48px;
+  }
+  .grid-galeria{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .foto-card{
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--raio);
+    overflow: hidden;
+    cursor: pointer;
+    background-color: #ddd;
+    background-size: cover;
+    background-position: center;
+    border: 3px solid transparent;
+    transition: border-color .15s ease, transform .1s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .foto-card:hover{
+    transform: translateY(-2px);
+  }
+  .foto-card.selecionada{
+    border-color: var(--amarelo);
+    box-shadow: 0 0 0 3px rgba(242,201,76,0.35);
+  }
+
+  /* marca d'água repetida */
+  .foto-card::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Ctext x='0' y='130' font-family='Arial, sans-serif' font-size='26' font-weight='800' fill='rgba(255,255,255,0.32)' transform='rotate(-30 110 110)'%3ELUMNO%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  /* selo do ID no canto */
+  .foto-card .id-selo{
+    position:absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,52,76,0.75);
+    color: var(--branco);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 100px;
+    z-index: 2;
+  }
+
+  /* check de selecionado */
+  .foto-card .check{
+    position:absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--branco);
+    border: 2px solid var(--cinza-texto);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index: 2;
+    opacity: 0.85;
+  }
+  .foto-card.selecionada .check{
+    background: var(--amarelo);
+    border-color: var(--amarelo);
+    opacity: 1;
+  }
+  .foto-card .check svg{
+    width: 16px;
+    height: 16px;
+    display: none;
+  }
+  .foto-card.selecionada .check svg{
+    display: block;
+  }
+
+  .galeria-vazia{
+    text-align:center;
+    padding: 48px 20px;
+    color: var(--cinza-texto);
+  }
+
+  /* ---------- BARRA FIXA (total + finalizar) ---------- */
+  .barra-total{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--escuro);
+    color: var(--branco);
+    padding: 16px 0;
+    z-index: 50;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  }
+  .barra-total .container{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .barra-total .resumo{
+    font-size: 14px;
+  }
+  .barra-total .resumo strong{
+    display:block;
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .btn-finalizar{
+    background: var(--amarelo);
+    color: var(--escuro);
+    font-weight: 800;
+    font-size: 15px;
+    padding: 14px 32px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(242,201,76,0.5);
+    transition: box-shadow .15s ease, opacity .15s ease;
+  }
+  .btn-finalizar:hover{
+    box-shadow: 0 0 32px rgba(242,201,76,0.75);
+  }
+  .btn-finalizar:disabled{
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* ---------- MOBILE ---------- */
+  @media (max-width: 768px){
+    .grid-galeria{
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .intro h1{ font-size: 24px; }
+    .barra-total .container{
+      flex-direction: column;
+      align-items: stretch;
+      text-align: center;
+    }
+    .btn-finalizar{ width: 100%; }
+  }
+</style>
+</head>
+<body oncontextmenu="return false;">
+
+  <header>
+    <div class="container">
+      <span class="logo-texto">Lumno</span>
+    </div>
+  </header>
+
+  <section class="intro">
+    <div class="container">
+      <h1>Galeria ETEHE</h1>
+      <p>Clique nas fotos que deseja adquirir para selecioná-las. Ao finalizar, o pedido será enviado direto para o nosso WhatsApp.</p>
+      <span class="preco-info">Cada foto: R$ 15</span>
+    </div>
+  </section>
+
+  <section class="galeria">
+    <div class="container">
+      <div class="grid-galeria" id="grid-galeria"></div>
+      <div class="galeria-vazia" id="galeria-vazia" style="display:none;">
+        Nenhuma foto disponível no momento.
+      </div>
+    </div>
+  </section>
+
+  <div class="barra-total">
+    <div class="container">
+      <div class="resumo">
+        <span id="resumo-texto">0 fotos selecionadas</span>
+        <strong id="resumo-total">Total: R$ 0</strong>
+      </div>
+      <button class="btn-finalizar" id="btn-finalizar" disabled>Finalizar</button>
+    </div>
+  </div>
+
+  <script>
+  // ---------- CONFIGURAÇÃO ----------
+  const PRECO_POR_FOTO = 15;
+  const WHATSAPP_NUMERO = "555521975996032";
+  const ARQUIVO_ZIP = "assets/fotos-etehe.zip";
+
+  // ---------- ESTADO ----------
+  const grid = document.getElementById('grid-galeria');
+  const galeriaVazia = document.getElementById('galeria-vazia');
+  const selecionadas = new Set();
+  let fotos = []; // preenchido depois de ler o zip
+
+  // ---------- CARREGAR E EXTRAIR O ZIP ----------
+  async function carregarGaleria(){
+    galeriaVazia.style.display = 'block';
+    galeriaVazia.textContent = 'Carregando fotos...';
+
+    try{
+      const resposta = await fetch(ARQUIVO_ZIP);
+      if(!resposta.ok) throw new Error('Zip não encontrado');
+
+      const blobZip = await resposta.blob();
+      const zip = await JSZip.loadAsync(blobZip);
+
+      const entradas = Object.values(zip.files)
+        .filter(f => !f.dir && /\.(jpe?g|png|webp)$/i.test(f.name))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if(entradas.length === 0){
+        galeriaVazia.textContent = 'Nenhuma foto disponível no momento.';
+        return;
+      }
+
+      for(const entrada of entradas){
+        const conteudoBlob = await entrada.async('blob');
+        const url = URL.createObjectURL(conteudoBlob);
+        const id = entrada.name.split('/').pop().replace(/\.[^.]+$/, '');
+        fotos.push({ id, url });
+      }
+
+      galeriaVazia.style.display = 'none';
+      renderizarGaleria();
+
+    } catch(erro){
+      console.error(erro);
+      galeriaVazia.textContent = 'Não foi possível carregar as fotos. Tente novamente em instantes.';
+    }
+  }
+
+  // ---------- RENDERIZAÇÃO ----------
+  function renderizarGaleria(){
+    fotos.forEach(foto => {
+      const card = document.createElement('div');
+      card.className = 'foto-card';
+      card.style.backgroundImage = `url('${foto.url}')`;
+      card.dataset.id = foto.id;
+
+      card.innerHTML = `
+        <span class="id-selo">${foto.id}</span>
+        <span class="check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00344C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </span>
+      `;
+
+      card.addEventListener('click', () => toggleSelecao(foto.id, card));
+      card.addEventListener('dragstart', (e) => e.preventDefault());
+
+      grid.appendChild(card);
+    });
+  }
+
+  function toggleSelecao(id, card){
+    if(selecionadas.has(id)){
+      selecionadas.delete(id);
+      card.classList.remove('selecionada');
+    } else {
+      selecionadas.add(id);
+      card.classList.add('selecionada');
+    }
+    atualizarResumo();
+  }
+
+  function atualizarResumo(){
+    const qtd = selecionadas.size;
+    const total = qtd * PRECO_POR_FOTO;
+
+    document.getElementById('resumo-texto').textContent =
+      qtd === 1 ? '1 foto selecionada' : `${qtd} fotos selecionadas`;
+    document.getElementById('resumo-total').textContent = `Total: R$ ${total}`;
+
+    const btn = document.getElementById('btn-finalizar');
+    btn.disabled = qtd === 0;
+  }
+
+  // ---------- FINALIZAR ----------
+  document.getElementById('btn-finalizar').addEventListener('click', () => {
+    if(selecionadas.size === 0) return;
+
+    const ids = Array.from(selecionadas).sort();
+    const total = selecionadas.size * PRECO_POR_FOTO;
+
+    const mensagem =
+      `Olá! Quero comprar as seguintes fotos do ETEHE:\n` +
+      ids.join(', ') +
+      `\n\nTotal: ${selecionadas.size} foto(s) — R$ ${total}`;
+
+    const link = `https://api.whatsapp.com/send/?phone=${WHATSAPP_NUMERO}&text=${encodeURIComponent(mensagem)}&type=phone_number&app_absent=0`;
+    window.open(link, '_blank');
+  });
+
+  carregarGaleria();
+</script>
+
+</body>
+</html>
