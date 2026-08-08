@@ -24,7 +24,7 @@
     color: var(--escuro);
     background: var(--branco);
     line-height: 1.5;
-    padding-bottom: 110px; /* espaço pra barra fixa não cobrir conteúdo */
+    padding-bottom: 130px;
   }
 
   .container{
@@ -110,7 +110,6 @@
     box-shadow: 0 0 0 3px rgba(242,201,76,0.35);
   }
 
-  /* marca d'água repetida */
   .foto-card::after{
     content:"";
     position:absolute;
@@ -120,7 +119,6 @@
     background-repeat: repeat;
   }
 
-  /* selo do ID no canto */
   .foto-card .id-selo{
     position:absolute;
     bottom: 8px;
@@ -134,7 +132,6 @@
     z-index: 2;
   }
 
-  /* check de selecionado */
   .foto-card .check{
     position:absolute;
     top: 8px;
@@ -197,6 +194,26 @@
     font-size: 20px;
     font-weight: 800;
   }
+  .barra-total .nudge{
+    background: rgba(242,201,76,0.15);
+    color: var(--amarelo);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 100px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+  .barra-total .resumo .linha-preco{
+    font-size: 12px;
+    opacity: 0.75;
+    font-weight: 400;
+  }
+  .barra-total .resumo .economia{
+    font-size: 12px;
+    color: var(--amarelo);
+    font-weight: 700;
+  }
   .btn-finalizar{
     background: var(--amarelo);
     color: var(--escuro);
@@ -244,8 +261,8 @@
   <section class="intro">
     <div class="container">
       <h1>Galeria ETEHE</h1>
-      <p>Clique nas fotos que deseja adquirir para selecioná-las. Ao finalizar, o pedido será enviado direto para o nosso WhatsApp.</p>
-      <span class="preco-info">Cada foto: R$ 15</span>
+      <p>Clique nas fotos que deseja adquirir para selecioná-las. Quanto mais fotos, maior o desconto!</p>
+      <span class="preco-info">Cada foto: R$ 15, com descontos a partir de 5 fotos</span>
     </div>
   </section>
 
@@ -261,8 +278,13 @@
   <div class="barra-total">
     <div class="container">
       <div class="resumo">
-        <span id="resumo-texto">0 fotos selecionadas</span>
+        <span class="nudge" id="nudge" style="display:none;"></span>
+        <div>
+          <span id="resumo-texto">0 fotos selecionadas</span>
+          <div class="linha-preco" id="resumo-preco-unitario"></div>
+        </div>
         <strong id="resumo-total">Total: R$ 0</strong>
+        <div class="economia" id="resumo-economia"></div>
       </div>
       <button class="btn-finalizar" id="btn-finalizar" disabled>Finalizar</button>
     </div>
@@ -270,15 +292,30 @@
 
   <script>
   // ---------- CONFIGURAÇÃO ----------
-  const PRECO_POR_FOTO = 15;
-  const WHATSAPP_NUMERO = "555521975996032";
+  const WHATSAPP_NUMERO = "5521975996032";
   const ARQUIVO_ZIP = "assets/fotos-etehe.zip";
+
+  // ---------- PACOTES / DESCONTO POR VOLUME ----------
+  const PACOTES = [
+    { min: 1,  max: 4,        preco: 15, label: "1 a 4 fotos" },
+    { min: 5,  max: 9,        preco: 13, label: "5 a 9 fotos" },
+    { min: 10, max: 19,       preco: 11, label: "10 a 19 fotos" },
+    { min: 20, max: Infinity, preco: 9,  label: "20 fotos ou mais" },
+  ];
+  const PRECO_BASE = PACOTES[0].preco;
+
+  function getPacoteAtual(qtd){
+    return PACOTES.find(p => qtd >= p.min && qtd <= p.max) || PACOTES[0];
+  }
+  function getProximoPacote(qtd){
+    return PACOTES.find(p => p.min > qtd) || null;
+  }
 
   // ---------- ESTADO ----------
   const grid = document.getElementById('grid-galeria');
   const galeriaVazia = document.getElementById('galeria-vazia');
   const selecionadas = new Set();
-  let fotos = []; // preenchido depois de ler o zip
+  let fotos = [];
 
   // ---------- CARREGAR E EXTRAIR O ZIP ----------
   async function carregarGaleria(){
@@ -354,14 +391,47 @@
 
   function atualizarResumo(){
     const qtd = selecionadas.size;
-    const total = qtd * PRECO_POR_FOTO;
+    const btn = document.getElementById('btn-finalizar');
+    const nudge = document.getElementById('nudge');
+
+    if(qtd === 0){
+      document.getElementById('resumo-texto').textContent = '0 fotos selecionadas';
+      document.getElementById('resumo-preco-unitario').textContent = '';
+      document.getElementById('resumo-total').textContent = 'Total: R$ 0';
+      document.getElementById('resumo-economia').textContent = '';
+      nudge.style.display = 'none';
+      btn.disabled = true;
+      return;
+    }
+
+    const pacote = getPacoteAtual(qtd);
+    const total = qtd * pacote.preco;
+    const totalSemDesconto = qtd * PRECO_BASE;
+    const economia = totalSemDesconto - total;
 
     document.getElementById('resumo-texto').textContent =
       qtd === 1 ? '1 foto selecionada' : `${qtd} fotos selecionadas`;
-    document.getElementById('resumo-total').textContent = `Total: R$ ${total}`;
+    document.getElementById('resumo-preco-unitario').textContent =
+      `R$ ${pacote.preco.toFixed(2).replace('.', ',')} por foto`;
+    document.getElementById('resumo-total').textContent =
+      `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
 
-    const btn = document.getElementById('btn-finalizar');
-    btn.disabled = qtd === 0;
+    document.getElementById('resumo-economia').textContent = economia > 0
+      ? `Você economizou R$ ${economia.toFixed(2).replace('.', ',')}`
+      : '';
+
+    const proximo = getProximoPacote(qtd);
+    nudge.style.display = 'inline-block';
+    if(proximo){
+      const faltam = proximo.min - qtd;
+      nudge.textContent = faltam === 1
+        ? `🎉 Falta só 1 foto para R$ ${proximo.preco.toFixed(2).replace('.', ',')} por foto!`
+        : `🎉 Faltam ${faltam} fotos para R$ ${proximo.preco.toFixed(2).replace('.', ',')} por foto!`;
+    } else {
+      nudge.textContent = `🏆 Você já está no maior desconto disponível!`;
+    }
+
+    btn.disabled = false;
   }
 
   // ---------- FINALIZAR ----------
@@ -369,12 +439,16 @@
     if(selecionadas.size === 0) return;
 
     const ids = Array.from(selecionadas).sort();
-    const total = selecionadas.size * PRECO_POR_FOTO;
+    const qtd = selecionadas.size;
+    const pacote = getPacoteAtual(qtd);
+    const total = qtd * pacote.preco;
 
     const mensagem =
       `Olá! Quero comprar as seguintes fotos do ETEHE:\n` +
       ids.join(', ') +
-      `\n\nTotal: ${selecionadas.size} foto(s) — R$ ${total}`;
+      `\n\nQuantidade: ${qtd} foto(s)` +
+      `\nPreço unitário: R$ ${pacote.preco.toFixed(2).replace('.', ',')} (${pacote.label})` +
+      `\nTotal: R$ ${total.toFixed(2).replace('.', ',')}`;
 
     const link = `https://api.whatsapp.com/send/?phone=${WHATSAPP_NUMERO}&text=${encodeURIComponent(mensagem)}&type=phone_number&app_absent=0`;
     window.open(link, '_blank');
