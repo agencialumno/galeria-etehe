@@ -293,7 +293,8 @@
   <script>
   // ---------- CONFIGURAÇÃO ----------
   const WHATSAPP_NUMERO = "5521975996032";
-  const ARQUIVO_ZIP = "assets/fotos-etehe.zip";
+  const PASTA_FOTOS = "assets/fotos/";
+  const MANIFEST = "assets/fotos/manifest.json";
 
   // ---------- PACOTES / DESCONTO POR VOLUME ----------
   const PACOTES = [
@@ -317,33 +318,26 @@
   const selecionadas = new Set();
   let fotos = [];
 
-  // ---------- CARREGAR E EXTRAIR O ZIP ----------
+  // ---------- CARREGAR MANIFEST (LISTA DE ARQUIVOS) ----------
   async function carregarGaleria(){
     galeriaVazia.style.display = 'block';
     galeriaVazia.textContent = 'Carregando fotos...';
 
     try{
-      const resposta = await fetch(ARQUIVO_ZIP);
-      if(!resposta.ok) throw new Error('Zip não encontrado');
+      const resposta = await fetch(MANIFEST);
+      if(!resposta.ok) throw new Error('Manifest não encontrado');
 
-      const blobZip = await resposta.blob();
-      const zip = await JSZip.loadAsync(blobZip);
+      const nomesArquivos = await resposta.json();
 
-      const entradas = Object.values(zip.files)
-        .filter(f => !f.dir && /\.(jpe?g|png|webp)$/i.test(f.name))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      if(entradas.length === 0){
+      if(!Array.isArray(nomesArquivos) || nomesArquivos.length === 0){
         galeriaVazia.textContent = 'Nenhuma foto disponível no momento.';
         return;
       }
 
-      for(const entrada of entradas){
-        const conteudoBlob = await entrada.async('blob');
-        const url = URL.createObjectURL(conteudoBlob);
-        const id = entrada.name.split('/').pop().replace(/\.[^.]+$/, '');
-        fotos.push({ id, url });
-      }
+      fotos = nomesArquivos.map(nome => ({
+        id: nome.replace(/\.[^.]+$/, ''),
+        arquivo: PASTA_FOTOS + nome
+      }));
 
       galeriaVazia.style.display = 'none';
       renderizarGaleria();
@@ -359,7 +353,7 @@
     fotos.forEach(foto => {
       const card = document.createElement('div');
       card.className = 'foto-card';
-      card.style.backgroundImage = `url('${foto.url}')`;
+      card.style.backgroundImage = `url('${foto.arquivo}')`;
       card.dataset.id = foto.id;
 
       card.innerHTML = `

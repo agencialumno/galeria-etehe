@@ -156,7 +156,7 @@
   <div class="lista" id="lista"></div>
 
   <div class="acoes">
-    <button id="btn-zip" disabled>Baixar .zip renomeado</button>
+    <button id="btn-zip" disabled>Baixar fotos + manifest</button>
     <button id="btn-codigo" disabled>Gerar código JS</button>
   </div>
 
@@ -267,9 +267,9 @@ function comprimirImagem(arquivo, larguraMax, qualidade){
   const avisoTamanho = document.getElementById('aviso-tamanho');
 
   btnZip.disabled = true;
-  btnZip.textContent = 'Comprimindo fotos...';
+  btnZip.textContent = 'Comprimindo e baixando...';
 
-  const zip = new JSZip();
+  const nomesFinais = [];
   let tamanhoOriginal = 0;
   let tamanhoComprimido = 0;
 
@@ -277,25 +277,38 @@ function comprimirImagem(arquivo, larguraMax, qualidade){
     tamanhoOriginal += arquivo.size;
 
     const nomeSemExt = arquivo._novoNome.replace(/\.[^.]+$/, '');
+    const nomeFinal = `${nomeSemExt}.jpg`;
     const blobComprimido = await comprimirImagem(arquivo, larguraMax, qualidade);
-
     tamanhoComprimido += blobComprimido.size;
-    zip.file(`${nomeSemExt}.jpg`, blobComprimido); // sempre salva como .jpg após comprimir
+
+    const url = URL.createObjectURL(blobComprimido);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeFinal;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    nomesFinais.push(nomeFinal);
+
+    // pequena pausa entre downloads pro navegador não bloquear
+    await new Promise(r => setTimeout(r, 300));
   }
 
-  const blobZip = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blobZip);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'fotos-etehe.zip';
-  a.click();
+  // gera e baixa o manifest.json
+  const manifestBlob = new Blob([JSON.stringify(nomesFinais, null, 2)], { type: 'application/json' });
+  const manifestUrl = URL.createObjectURL(manifestBlob);
+  const aManifest = document.createElement('a');
+  aManifest.href = manifestUrl;
+  aManifest.download = 'manifest.json';
+  aManifest.click();
+  URL.revokeObjectURL(manifestUrl);
 
   const economiaPercent = Math.round((1 - tamanhoComprimido / tamanhoOriginal) * 100);
   avisoTamanho.textContent =
-    `Original: ${(tamanhoOriginal / 1024 / 1024).toFixed(1)} MB → Comprimido: ${(tamanhoComprimido / 1024 / 1024).toFixed(1)} MB (${economiaPercent}% menor)`;
+    `${nomesFinais.length} fotos baixadas. Original: ${(tamanhoOriginal / 1024 / 1024).toFixed(1)} MB → Comprimido: ${(tamanhoComprimido / 1024 / 1024).toFixed(1)} MB (${economiaPercent}% menor). Mova todos os arquivos baixados (fotos + manifest.json) para a pasta assets/fotos/.`;
 
   btnZip.disabled = false;
-  btnZip.textContent = 'Baixar .zip renomeado';
+  btnZip.textContent = 'Baixar fotos + manifest';
 });
 
   btnCodigo.addEventListener('click', () => {
