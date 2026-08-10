@@ -115,6 +115,12 @@
     background: #fff;
     color: #00344C;
   }
+
+  .aviso-compressao{
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 6px;
+}
 </style>
 </head>
 <body>
@@ -123,15 +129,24 @@
   <p>Ferramenta local: renomeia as fotos e gera o código pronto. Não sobe nada automaticamente — você mesmo arrasta o resultado pro GitHub.</p>
 
   <div class="config">
-    <div>
-      <label>Prefixo do ID</label>
-      <input type="text" id="prefixo" value="ETEHE">
-    </div>
-    <div>
-      <label>Começar em</label>
-      <input type="number" id="inicio" value="1">
-    </div>
+  <div>
+    <label>Prefixo do ID</label>
+    <input type="text" id="prefixo" value="ETEHE">
   </div>
+  <div>
+    <label>Começar em</label>
+    <input type="number" id="inicio" value="1">
+  </div>
+  <div>
+    <label>Largura máxima (px)</label>
+    <input type="number" id="largura-max" value="1600">
+  </div>
+  <div>
+    <label>Qualidade (%)</label>
+    <input type="number" id="qualidade" value="75" min="10" max="100">
+  </div>
+</div>
+<p class="aviso-compressao" id="aviso-tamanho"></p>
 
   <div class="drop-area" id="drop-area">
     <p>Arraste as fotos aqui ou clique para selecionar</p>
@@ -212,18 +227,76 @@
   prefixoInput.addEventListener('input', renderizarLista);
   inicioInput.addEventListener('input', renderizarLista);
 
-  btnZip.addEventListener('click', async () => {
-    const zip = new JSZip();
-    for(const arquivo of arquivos){
-      zip.file(arquivo._novoNome, arquivo);
-    }
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'fotos-etehe.zip';
-    a.click();
+function comprimirImagem(arquivo, larguraMax, qualidade){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(arquivo);
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      if(width > larguraMax){
+        height = Math.round(height * (larguraMax / width));
+        width = larguraMax;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        blob => {
+          URL.revokeObjectURL(url);
+          resolve(blob);
+        },
+        'image/jpeg',
+        qualidade / 100
+      );
+    };
+
+    img.onerror = reject;
+    img.src = url;
   });
+}
+
+  btnZip.addEventListener('click', async () => {
+  const larguraMax = parseInt(document.getElementById('largura-max').value) || 1600;
+  const qualidade = parseInt(document.getElementById('qualidade').value) || 75;
+  const avisoTamanho = document.getElementById('aviso-tamanho');
+
+  btnZip.disabled = true;
+  btnZip.textContent = 'Comprimindo fotos...';
+
+  const zip = new JSZip();
+  let tamanhoOriginal = 0;
+  let tamanhoComprimido = 0;
+
+  for(const arquivo of arquivos){
+    tamanhoOriginal += arquivo.size;
+
+    const nomeSemExt = arquivo._novoNome.replace(/\.[^.]+$/, '');
+    const blobComprimido = await comprimirImagem(arquivo, larguraMax, qualidade);
+
+    tamanhoComprimido += blobComprimido.size;
+    zip.file(`${nomeSemExt}.jpg`, blobComprimido); // sempre salva como .jpg após comprimir
+  }
+
+  const blobZip = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blobZip);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fotos-etehe.zip';
+  a.click();
+
+  const economiaPercent = Math.round((1 - tamanhoComprimido / tamanhoOriginal) * 100);
+  avisoTamanho.textContent =
+    `Original: ${(tamanhoOriginal / 1024 / 1024).toFixed(1)} MB → Comprimido: ${(tamanhoComprimido / 1024 / 1024).toFixed(1)} MB (${economiaPercent}% menor)`;
+
+  btnZip.disabled = false;
+  btnZip.textContent = 'Baixar .zip renomeado';
+});
 
   btnCodigo.addEventListener('click', () => {
     const linhas = arquivos.map(a =>
